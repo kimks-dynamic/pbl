@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>시간외근무 계산관리기</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:"Malgun Gothic","Noto Sans KR",Arial,sans-serif;background:#f4f6f8;color:#20252b}
+.container{max-width:1500px;margin:0 auto;padding:24px}
+h1{margin:0 0 8px;font-size:28px}
+.subtitle{color:#667085;margin-bottom:22px}
+.card{background:#fff;border:1px solid #dfe3e8;border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:12px}
+label{display:block;font-weight:700;font-size:13px;margin-bottom:6px}
+input,select,button{font:inherit}
+input,select{width:100%;padding:9px 10px;border:1px solid #cbd2d9;border-radius:7px;background:#fff}
+input[type=number]{text-align:right}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+button{border:0;border-radius:7px;padding:9px 14px;cursor:pointer;font-weight:700}
+.primary{background:#2563eb;color:#fff}.secondary{background:#e9eef5;color:#263342}.danger{background:#dc3545;color:#fff}
+.summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.kpi{border:1px solid #e0e5eb;border-radius:10px;padding:13px;background:#fafbfc}
+.kpi small{display:block;color:#667085;margin-bottom:4px}.kpi strong{font-size:21px}
+.table-wrap{overflow:auto;max-height:600px}
+table{border-collapse:collapse;width:100%;min-width:1250px}
+th,td{border-bottom:1px solid #e6e9ed;padding:8px 7px;text-align:center;white-space:nowrap}
+th{background:#eef2f6;position:sticky;top:0;z-index:2}
+td.left{text-align:left}
+tr.over{background:#fff1f0}
+tr.ok{background:#f7fff8}
+.badge{display:inline-block;padding:3px 7px;border-radius:99px;font-size:12px;font-weight:700}
+.bad{background:#ffd9d6;color:#a61b14}.good{background:#dff5e3;color:#176b2c}
+.note{font-size:12px;color:#667085;line-height:1.6}
+.rate-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.actions{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+@media(max-width:900px){.grid,.summary,.rate-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.grid,.summary,.rate-grid{grid-template-columns:1fr}.container{padding:12px}}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>시간외근무 계산관리기</h1>
+  <div class="subtitle">근태별 근무시간과 가산율을 입력하면 시간외근무수당 및 월 법정한도 준수 여부를 자동 계산합니다.</div>
+
+  <div class="card">
+    <h3>① 계산 기준 설정</h3>
+    <div class="grid">
+      <div><label>월 법정한도시간</label><input id="limit" type="number" min="0" step="0.5" value="12"></div>
+      <div><label>연장 배율</label><input id="rateOT" type="number" min="0" step="0.01" value="1.5"></div>
+      <div><label>휴일 배율</label><input id="rateHoliday" type="number" min="0" step="0.01" value="1.5"></div>
+      <div><label>휴연 배율</label><input id="rateHolidayOT" type="number" min="0" step="0.01" value="2"></div>
+    </div>
+    <div class="rate-grid" style="margin-top:12px">
+      <div><label>일반 근무 가산율</label><input id="addNormal" type="number" min="0" step="0.01" value="0"></div>
+      <div><label>연장 가산율</label><input id="addOT" type="number" min="0" step="0.01" value="0.5"></div>
+      <div><label>휴일 가산율</label><input id="addHoliday" type="number" min="0" step="0.01" value="0.5"></div>
+      <div><label>휴연 가산율</label><input id="addHolidayOT" type="number" min="0" step="0.01" value="1"></div>
+      <div><label>초과 강조 기준(시간)</label><input id="target" type="number" min="0" step="0.5" value="12"></div>
+    </div>
+    <div class="note" style="margin-top:10px">
+      ※ 기본 배율은 예시값입니다. 회사 취업규칙·단체협약·근로계약 및 적용 법령에 맞게 수정해 사용하세요.
+      “가산율”은 별도 표시용으로 저장되며 실제 수당 계산은 각 코드의 배율을 사용합니다.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>② 사원 입력</h3>
+    <div class="grid">
+      <div><label>사번</label><input id="empNo" placeholder="예: A001"></div>
+      <div><label>법정통상시급(원)</label><input id="hourly" type="number" min="0" step="1" placeholder="예: 15000"></div>
+      <div><label>월근무시간</label><input id="workHours" type="number" min="0" step="0.5" placeholder="예: 176"></div>
+      <div><label>연장근무시간</label><input id="otHours" type="number" min="0" step="0.5" value="0"></div>
+      <div><label>휴일근무시간</label><input id="holidayHours" type="number" min="0" step="0.5" value="0"></div>
+      <div><label>휴연근무시간</label><input id="holidayOTHours" type="number" min="0" step="0.5" value="0"></div>
+      <div><label>기타 시간외시간</label><input id="normalHours" type="number" min="0" step="0.5" value="0"></div>
+      <div style="display:flex;align-items:end"><button class="primary" style="width:100%" onclick="addEmployee()">사원 추가</button></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="actions">
+      <h3 style="margin:0">③ 계산 결과</h3>
+      <div class="btns" style="margin:0">
+        <button class="secondary" onclick="sortOver()">초과자 우선 정렬</button>
+        <button class="secondary" onclick="sortEmp()">사번순 정렬</button>
+        <button class="primary" onclick="downloadCSV()">CSV 다운로드</button>
+        <button class="danger" onclick="clearAll()">전체 삭제</button>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="kpi"><small>등록 인원</small><strong id="sumCount">0명</strong></div>
+      <div class="kpi"><small>총 월근무시간</small><strong id="sumWork">0시간</strong></div>
+      <div class="kpi"><small>총 시간외시간</small><strong id="sumOT">0시간</strong></div>
+      <div class="kpi"><small>총 시간외수당</small><strong id="sumPay">0원</strong></div>
+      <div class="kpi"><small>법정한도 초과자</small><strong id="sumOver">0명</strong></div>
+    </div>
+
+    <div class="table-wrap" style="margin-top:15px">
+      <table>
+        <thead>
+          <tr>
+            <th>사번</th><th>통상시급</th><th>월근무</th><th>연장</th><th>휴일</th><th>휴연</th><th>기타</th>
+            <th>총 시간외</th><th>월 한도</th><th>한도 잔여</th>
+            <th>연장수당</th><th>휴일수당</th><th>휴연수당</th><th>기타수당</th><th>총 수당</th><th>판정</th><th>삭제</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+let employees = [];
+
+const $ = id => document.getElementById(id);
+const n = id => Number($(id).value) || 0;
+const fmt = x => new Intl.NumberFormat('ko-KR').format(Math.round(x));
+const hours = x => (Math.round(x*100)/100).toLocaleString('ko-KR',{maximumFractionDigits:2});
+
+function addEmployee(){
+  const empNo = $('empNo').value.trim();
+  if(!empNo){ alert('사번을 입력하세요.'); return; }
+  const hourly=n('hourly');
+  if(hourly<=0){ alert('법정통상시급을 입력하세요.'); return; }
+
+  employees.push({
+    id: Date.now()+Math.random(),
+    empNo, hourly,
+    workHours:n('workHours'),
+    ot:n('otHours'),
+    holiday:n('holidayHours'),
+    holidayOT:n('holidayOTHours'),
+    normal:n('normalHours')
+  });
+  ['empNo','hourly','workHours','otHours','holidayHours','holidayOTHours','normalHours']
+    .forEach((id,i)=>{ if(i>2) $(id).value=0; else $(id).value=''; });
+  render();
+}
+
+function calc(e){
+  const rOT=n('rateOT'), rH=n('rateHoliday'), rHO=n('rateHolidayOT');
+  const limit=n('limit'), target=n('target');
+  const otPay=e.hourly*e.ot*rOT;
+  const hPay=e.hourly*e.holiday*rH;
+  const hoPay=e.hourly*e.holidayOT*rHO;
+  const normalPay=e.hourly*e.normal*(1+n('addNormal'));
+  const totalOT=e.ot+e.holiday+e.holidayOT+e.normal;
+  const totalPay=otPay+hPay+hoPay+normalPay;
+  const over=totalOT>limit || totalOT>target;
+  return {...e,totalOT,otPay,hPay,hoPay,normalPay,totalPay,limit,over};
+}
+
+function render(list=employees){
+  const tb=$('tbody'); tb.innerHTML='';
+  let totalWork=0,totalOT=0,totalPay=0,over=0;
+  list.forEach((e)=>{
+    const x=calc(e);
+    totalWork+=e.workHours; totalOT+=x.totalOT; totalPay+=x.totalPay; if(x.totalOT>x.limit) over++;
+    const tr=document.createElement('tr');
+    tr.className=(x.totalOT>x.limit || x.totalOT>x.target)?'over':'ok';
+    tr.innerHTML=`
+      <td><b>${esc(e.empNo)}</b></td>
+      <td>${fmt(e.hourly)}</td><td>${hours(e.workHours)}</td>
+      <td>${hours(e.ot)}</td><td>${hours(e.holiday)}</td><td>${hours(e.holidayOT)}</td><td>${hours(e.normal)}</td>
+      <td><b>${hours(x.totalOT)}</b></td><td>${hours(x.limit)}</td>
+      <td>${hours(x.limit-x.totalOT)}</td>
+      <td>${fmt(x.otPay)}</td><td>${fmt(x.hPay)}</td><td>${fmt(x.hoPay)}</td><td>${fmt(x.normalPay)}</td>
+      <td><b>${fmt(x.totalPay)}</b></td>
+      <td>${x.totalOT>x.limit?'<span class="badge bad">법정한도 초과</span>':'<span class="badge good">준수</span>'}</td>
+      <td><button class="danger" onclick="removeEmployee('${e.id}')">삭제</button></td>`;
+    tb.appendChild(tr);
+  });
+  $('sumCount').textContent=employees.length+'명';
+  $('sumWork').textContent=hours(totalWork)+'시간';
+  $('sumOT').textContent=hours(totalOT)+'시간';
+  $('sumPay').textContent=fmt(totalPay)+'원';
+  $('sumOver').textContent=over+'명';
+}
+
+function removeEmployee(id){ employees=employees.filter(e=>String(e.id)!==String(id)); render(); }
+function sortOver(){ employees.sort((a,b)=>calc(b).totalOT-calc(a).totalOT); render(); }
+function sortEmp(){ employees.sort((a,b)=>a.empNo.localeCompare(b.empNo,'ko')); render(); }
+function clearAll(){ if(confirm('전체 입력자료를 삭제할까요?')){employees=[];render();} }
+
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
+
+function downloadCSV(){
+  if(!employees.length){alert('다운로드할 데이터가 없습니다.');return;}
+  const rows=[['사번','법정통상시급','월근무시간','연장시간','휴일시간','휴연시간','기타시간',
+    '총 시간외시간','월 법정한도','한도 잔여','연장수당','휴일수당','휴연수당','기타수당','총 시간외수당','법정한도 준수']];
+  employees.forEach(e=>{
+    const x=calc(e);
+    rows.push([e.empNo,e.hourly,e.workHours,e.ot,e.holiday,e.holidayOT,e.normal,x.totalOT,x.limit,x.limit-x.totalOT,
+      Math.round(x.otPay),Math.round(x.hPay),Math.round(x.hoPay),Math.round(x.normalPay),Math.round(x.totalPay),
+      x.totalOT<=x.limit?'준수':'초과']);
+  });
+  const csv='\uFEFF'+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='시간외근무_계산결과.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+['limit','rateOT','rateHoliday','rateHolidayOT','addNormal','addOT','addHoliday','addHolidayOT','target']
+.forEach(id=>$(id).addEventListener('input',()=>render()));
+render();
+</script>
+</body>
+</html>
