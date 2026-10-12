@@ -1,0 +1,11 @@
+[browser]
+# 사용 통계를 Streamlit 회사로 보내지 않음 (외부 전송 금지 기준)
+gatherUsageStats = false
+
+[server]
+# 내 PC에서만 접속 가능 (공개 범위는 사용자 결정 전까지 제한)
+address = "localhost"
+
+[client]
+# 오른쪽 위 "Deploy"(외부 클라우드 배포) 버튼 숨김 (배포는 사용자 결정 사항)
+toolbarMode = "minimal"
